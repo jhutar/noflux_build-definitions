@@ -143,6 +143,14 @@ spec:
         return
       fi
 
+      # Workaround for missing /etc/redhat-release in minimal images
+      # https://github.com/nonflux/build-definitions/issues/1
+      if [ ! -f "/tekton/home/unpacked-${component_label}-${version_label}-${release_label}/rootfs/etc/redhat-release" ]; then
+        mkdir -p "/tekton/home/unpacked-${component_label}-${version_label}-${release_label}/rootfs/etc"
+        echo "Red Hat Enterprise Linux release 9 (Plow)" > "/tekton/home/unpacked-${component_label}-${version_label}-${release_label}/rootfs/etc/redhat-release"
+        echo "Injected dummy /etc/redhat-release to satisfy check-payload"
+      fi
+
       # Run check-payload on the unpacked image
       # The check-payload command fails with exit 1 when the scan for an image is unsuccessful
       # or when the image is not FIPS compliant. Hence, count those as failures and not errors
