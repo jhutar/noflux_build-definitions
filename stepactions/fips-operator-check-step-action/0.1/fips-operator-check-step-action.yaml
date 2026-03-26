@@ -46,9 +46,13 @@ spec:
       local release_label="$3"
       local image_num="$4"
       # Clean up OCI image (may or may not exist depending on failure point)
-      rm -rf "/tekton/home/${component_label}-${version_label}-${release_label}-${image_num}:latest" 2>/dev/null || true
+      if [ -e "/tekton/home/${component_label}-${version_label}-${release_label}-${image_num}:latest" ]; then
+        rm -rf "/tekton/home/${component_label}-${version_label}-${release_label}-${image_num}:latest"
+      fi
       # Clean up unpacked directory (may or may not exist depending on failure point)
-      rm -rf "/tekton/home/unpacked-${component_label}-${version_label}-${release_label}-${image_num}" 2>/dev/null || true
+      if [ -e "/tekton/home/unpacked-${component_label}-${version_label}-${release_label}-${image_num}" ]; then
+        rm -rf "/tekton/home/unpacked-${component_label}-${version_label}-${release_label}-${image_num}"
+      fi
     }
 
     # Function to process a single related image
