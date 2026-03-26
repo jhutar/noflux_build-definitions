@@ -19,6 +19,10 @@ Some operator plugin containers (like `network-observability-console-plugin-cont
 
 We will update the `fbc-fips-check-oci-ta` Tekton task to explicitly handle the missing `/etc/redhat-release` file prior to executing the `check-payload` scan. The script will be updated to check if the file exists within the unpacked image directory. If it is missing, the script will inject a dummy `/etc/redhat-release` file (e.g., containing "Red Hat Enterprise Linux release 9 (Plow)") into the unpacked filesystem to satisfy `check-payload`'s structural requirement, allowing the scan to proceed on the actual binaries.
 
+Additionally, to manage this technical debt:
+1. An upstream issue must be tracked for the `check-payload` tool to natively handle missing release files.
+2. The task script must include an inline comment directly referencing this upstream issue so future maintainers understand why the workaround exists and when it can be removed.
+
 **Architectural Components Affected:**
 * Task: `fbc-fips-check-oci-ta` (specifically the step executing `check-payload`)
 
@@ -36,7 +40,8 @@ We will update the `fbc-fips-check-oci-ta` Tekton task to explicitly handle the 
 ### Negative
 
 * Injecting a dummy `redhat-release` file is a workaround; ideally, `check-payload` should handle this gracefully itself.
-* If `check-payload` behavior strictly relies on matching the exact OS version for specific vulnerability databases, a dummy file might lead to slightly inaccurate FIPS validation context (though the binary scanning should remain unaffected).
+* If `check-payload` behavior strictly relies on matching the exact OS version for specific vulnerability databases, a dummy file containing "RHEL 9" might lead to slightly inaccurate FIPS validation context (though the binary scanning should remain unaffected).
+* This introduces technical debt into the pipeline logic, which must be actively managed and removed once the upstream tool is fixed.
 
 ### Neutral
 
