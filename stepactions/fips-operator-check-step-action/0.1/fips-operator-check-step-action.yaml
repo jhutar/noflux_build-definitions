@@ -86,11 +86,14 @@ spec:
       related_image="${related_image//$'\n'/}"
       echo "Processing related image ${image_num} of ${total_images}: ${related_image}"
 
-      image_accessible=0
+      local image_accessible=0
+      local image_labels=""
       if ! image_labels=$(get_image_labels "$related_image"); then
         echo "Could not inspect original pullspec $related_image. Checking if there's a mirror present"
         if [ -n "${image_mirror_map}" ]; then
+          local reg_and_repo=""
           reg_and_repo=$(get_image_registry_and_repository "${related_image}")
+          local mirrors=()
           mapfile -t mirrors < <(get_image_mirror_list "${reg_and_repo}" "${image_mirror_map}")
           if [[ -z "${mirrors[0]}" ]]; then
             echo "No mirrors found in image mirror map for ${reg_and_repo}"
@@ -98,6 +101,8 @@ spec:
             echo "Mirrors for $reg_and_repo are:"
             printf "%s\n" "${mirrors[@]}"
 
+            local mirror=""
+            local replaced_image=""
             for mirror in "${mirrors[@]}"; do
               echo "Attempting to use mirror ${mirror}"
               replaced_image=$(replace_image_pullspec "$related_image" "$mirror")
@@ -121,8 +126,12 @@ spec:
         handle_process_result "error" "Error: Unable to scan image: Could not inspect image ${related_image} for labels"
         return
       fi
+      
+      local component_label=""
       component_label=$(echo "${image_labels}" | grep 'com.redhat.component=' | cut -d= -f2 | tr -d '\n\r' | xargs || true)
+      local version_label=""
       version_label=$(echo "${image_labels}" | grep '^version=' | cut -d= -f2 | tr -d '\n\r' | xargs || true)
+      local release_label=""
       release_label=$(echo "${image_labels}" | grep 'release=' | cut -d= -f2 | tr -d '\n\r' | xargs || true)
       echo "Component label is ${component_label}"
       echo "Version label is ${version_label}"
@@ -134,6 +143,7 @@ spec:
       fi
 
       # Sanitize the image reference to handle Docker references with both tag and digest
+      local sanitized_related_image=""
       sanitized_related_image=$(get_image_registry_repository_digest "${related_image}")
 
       # If no digest is present, fallback to using tag-based sanitization
@@ -175,7 +185,11 @@ spec:
           handle_process_result "success" "check-payload scan was successful for ${related_image}" "${component_label}" "${version_label}" "${release_label}" "${image_num}"
         elif grep -q -- "---- Successful run with warnings" "/tekton/home/report-${component_label}-${version_label}-${release_label}-${image_num}.csv"; then
           handle_process_result "warnings" "check-payload scan was successful with warnings for ${related_image}" "${component_label}" "${version_label}" "${release_label}" "${image_num}"
+        else
+          handle_process_result "failure" "check-payload scan produced an unrecognized report format for ${related_image}" "${component_label}" "${version_label}" "${release_label}" "${image_num}"
         fi
+      else
+        handle_process_result "failure" "check-payload scan did not produce a report for ${related_image}" "${component_label}" "${version_label}" "${release_label}" "${image_num}"
       fi
     }
 
